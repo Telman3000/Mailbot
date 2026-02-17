@@ -4,6 +4,7 @@ from imap_tools import MailBox
 import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
+import ssl
 
 # Load .env
 load_dotenv()
@@ -88,10 +89,18 @@ async def send_mail(client, message):
         msg["Subject"] = subject
         msg.set_content(body)
 
-        with smtplib.SMTP(SMTP_SERVER, 587) as server:
-            server.starttls()
-            server.login(EMAIL, PASSWORD)
-            server.send_message(msg)
+        context = ssl.create_default_context()
+
+        server = smtplib.SMTP_SSL(
+            SMTP_SERVER,
+            465,
+            timeout=15,
+            context=context
+        )
+
+        server.login(EMAIL, PASSWORD)
+        server.send_message(msg)
+        server.quit()
 
         await message.reply("✅ Письмо отправлено!")
 
