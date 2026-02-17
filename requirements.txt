@@ -2,3 +2,4 @@ pyrogram
 tgcrypto
 imap-tools
 python-dotenv
+resend

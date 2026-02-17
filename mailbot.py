@@ -1,33 +1,32 @@
 import os
 from pyrogram import Client, filters
 from imap_tools import MailBox
-import smtplib
-from email.message import EmailMessage
 from dotenv import load_dotenv
-import ssl
+import resend
 
-# Load .env
+# Load ENV
 load_dotenv()
 
-# Telegram credentials
-api_id = int(os.getenv("API_ID"))
-api_hash = os.getenv("API_HASH")
-bot_token = os.getenv("BOT_TOKEN")
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 ALLOWED_USER = int(os.getenv("ALLOWED_USER"))
 
-# Email credentials
-EMAIL = os.getenv("EMAIL")
-PASSWORD = os.getenv("PASSWORD")
+EMAIL = os.getenv("EMAIL")          # используется для IMAP
+PASSWORD = os.getenv("PASSWORD")    # используется для IMAP
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 IMAP_SERVER = "mail.innopolis.ru"
-SMTP_SERVER = "mail.innopolis.ru"
+
+# Init Resend
+resend.api_key = RESEND_API_KEY
 
 # Bot
 app = Client(
     "mail_bot",
-    api_id=api_id,
-    api_hash=api_hash,
-    bot_token=bot_token
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
 )
 
 # START
@@ -40,7 +39,7 @@ async def start_handler(client, message):
         "/send email subject text — отправить письмо"
     )
 
-# INBOX
+# INBOX (через IMAP)
 @app.on_message(filters.command("inbox") & filters.user(ALLOWED_USER))
 async def get_mail(client, message):
     try:
@@ -69,7 +68,7 @@ async def get_mail(client, message):
     except Exception as e:
         await message.reply(f"Ошибка IMAP: {e}")
 
-# SEND
+# SEND (через Resend API)
 @app.on_message(filters.command("send") & filters.user(ALLOWED_USER))
 async def send_mail(client, message):
     try:
@@ -83,34 +82,21 @@ async def send_mail(client, message):
         subject = parts[2]
         body = parts[3]
 
-        msg = EmailMessage()
-        msg["From"] = EMAIL
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.set_content(body)
+        resend.Emails.send({
+            "from": "onboarding@resend.dev",  # для теста
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        })
 
-        context = ssl.create_default_context()
-
-        server = smtplib.SMTP_SSL(
-            SMTP_SERVER,
-            465,
-            timeout=15,
-            context=context
-        )
-
-        server.login(EMAIL, PASSWORD)
-        server.send_message(msg)
-        server.quit()
-
-        await message.reply("✅ Письмо отправлено!")
+        await message.reply("✅ Письмо отправлено через Resend!")
 
     except Exception as e:
-        await message.reply(f"Ошибка SMTP: {e}")
+        await message.reply(f"Ошибка SEND: {e}")
 
-# Block others
+# BLOCK OTHERS
 @app.on_message(~filters.user(ALLOWED_USER))
 async def block_others(client, message):
     await message.reply("⛔ Доступ запрещён.")
-
 
 app.run()
