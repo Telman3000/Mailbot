@@ -1,0 +1,7 @@
+.env
+venv/
+mail_bot.session
+mail_bot.session-journal
+__pycache__/
+imap_test.py
+bot.py
